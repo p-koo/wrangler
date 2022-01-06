@@ -7,28 +7,28 @@ Parameters:
 -----------
 exp_bed_list: str
     path to tsv file that has 2 columns of names and bed paths to be merged
-prefix_path: str
+prefix_save_path: str
     path + prefix for all output files
-feature_size: str
+seq_len: str
     desired length of sequences
-merge_overlap: str
+merge_overlap_len: str
     if two peak regions overlaps more than this amount, they will be re-centered and merged into a single sample.
 genome_path: str
     Path to reference genome 
 chrom_size:str
     Location for .chome.size file
-valid_chrom: str
+valid_chr: str
     Held out chromosomes for validation set. Separate chromosomes with commas. Eg. 7,8,9
-test_chrom: str
+test_chr: str
     Held out chromosomes for validation set. Separate chromosomes with commas. Eg. 7,8,9
 
 
 Example:
-$ python generate_multitask_binary.py -i ./exp_bed_list.tsv -o ./test  -g ./genomes/hg38.fa -c ./genomes/hg38.chrom.sizes -f 1000 -m 200 -v 6,7 -t 3,8
+$ python generate_multitask.py -i ./exp_bed_list.tsv -o ./test  -g ./genomes/hg38.fa -c ./genomes/hg38.chrom.sizes -s 1000 -m 200 -v 12,13 -t 7,8
 
 
 test:
-$ python generate_multitask_binary.py -i ./test_multitask/test.txt -o ./test_multitask/test  -g ./genomes/hg38.fa -c ./genomes/hg38.chrom.sizes -f 1000 -m 200 -v 6,7 -t 3,8
+$ python generate_multitask.py -i ../data/test_multitask/test.txt -o ../data/test_multitask/test  -g ../data/genomes/hg38.fa -c ../data/genomes/hg38.chrom.sizes -s 1000 -m 200 -v 12,13 -t 7,8
 
 """
 
@@ -48,21 +48,21 @@ def main():
         help="Path to file that contains 2-column list: (1) experiment names and (2) bed paths to be merge.",
     )
     parser.add_option(
-        '-o', "--prefix_path",
-        dest="prefix_path",
+        '-o', "--prefix_save_path",
+        dest="prefix_save_path",
         default="./merged_data",
         help="Path and predix name for intermediate files (eg. merged peak bed file) and output h5 file.",
     )
     parser.add_option(
-        '-f', "--feature_size",
-        dest="feature_size",
+        '-s', "--seq_len",
+        dest="seq_len",
         default=1000,
 	    type='int',
         help="Length of selected sequence regions.",
     )
     parser.add_option(
-        '-m', "--merge_overlap",
-        dest="merge_overlap",
+        '-m', "--merge_overlap_len",
+        dest="merge_overlap_len",
         default=200,
         type='int',
         help="If two peak regions overlaps more than this amount, they will be"
@@ -81,29 +81,29 @@ def main():
         help="Path to chromosome size file."
     )
     parser.add_option(
-	    '-v', "--valid_chrom", 
-	    dest="valid_chrom", 
+	    '-v', "--valid_chr", 
+	    dest="valid_chr", 
 	    default='6,7', 
 	    type="str", 
 	    help="Held out chromosomes for validation set. Separate chromosomes with commas."
     )
     parser.add_option(
-	    '-t', '--test_chrom', 
-	    dest = 'test_chrom', 
+	    '-t', '--test_chr', 
+	    dest = 'test_chr', 
 	    default='5,8', 
 	    type='str', 
 	    help='Held out chromosomes for test set. Separate chromosomes with commas.'
     )
     parser.add_option(
-        '-y', '--ignore_y', 
-        dest = 'ignore_y', 
+        '-y', '--ignore_chr_y', 
+        dest = 'ignore_chr_y', 
         default=False, 
         action="store_true",
         help='Ignore Y chromosome.'
     )
     parser.add_option(
-        '-x', '--ignore_auxiliary', 
-        dest = 'ignore_auxiliary', 
+        '-x', '--ignore_auxiliary_chr', 
+        dest = 'ignore_auxiliary_chr', 
         default=False, 
         action="store_true",
         help='Ignore auxiliary chromosome.'
@@ -113,31 +113,32 @@ def main():
         dest = 'alphabet', 
         default='ACGT', 
         type='str', 
-        help='Alphabet for one-hot encoding.'
+        help='Alphabet for one-hot encoding. Default: ACGT'
     )
     parser.add_option(
         '-u', '--uncertain_N', 
         dest = 'uncertain_N', 
         default=False, 
         action="store_true",
+        help='If True, sets positions in sequences with N charcters to 0.25. Otherwise, it remains a 0.'
     )
     (options, args) = parser.parse_args()
-    prefix_path = options.prefix_path
+    prefix_save_path = options.prefix_save_path
 
 
     process_data(
         exp_bed_list_path=options.exp_bed_list,
-        prefix_path=options.prefix_path,
+        prefix_save_path=options.prefix_save_path,
         genome_path=options.genome_path,
         chrom_sizes_path=options.chrom_size,
-        feature_size=options.feature_size,
-        merge_overlap=options.merge_overlap,
-        ignore_y=options.ignore_y,
-        ignore_auxiliary=options.ignore_auxiliary,
-        valid_chrom=options.valid_chrom,
-        test_chrom=options.test_chrom,
-        alphabet=options.alphabet,
+        seq_len=options.seq_len,
+        merge_overlap_len=options.merge_overlap_len,
+        valid_chr=options.valid_chr,
+        test_chr=options.test_chr,
+        ignore_chr_y=options.ignore_chr_y,
+        ignore_auxiliary_chr=options.ignore_auxiliary_chr,
         uncertain_N=options.uncertain_N,
+        alphabet=options.alphabet,
     )
 
 
@@ -149,65 +150,65 @@ def main():
 
 def process_data(
     exp_bed_list_path,
-    prefix_path,
+    prefix_save_path,
     genome_path,
     chrom_sizes_path,
-    feature_size=1000,
-    merge_overlap=200,
-    ignore_y=False,
-    ignore_auxiliary=False,
-    valid_chrom='5,7',
-    test_chrom='3,6',
-    alphabet='ACGT',
+    seq_len=1000,
+    merge_overlap_len=200,
+    valid_chr='5,7',
+    test_chr='3,6',
+    ignore_chr_y=False,
+    ignore_auxiliary_chr=False,
     uncertain_N=True,
+    alphabet='ACGT',
 ):
 
     # generate a merged multitask bed file and activity table (outputs: prefix_merged.bed and prefix_activity.tsv)
     print("Merging bed files from: %s"%(exp_bed_list_path))
     generate_multitask_bed(
         exp_bed_list_path=exp_bed_list_path,
-        feature_size=feature_size,
-        merge_overlap=merge_overlap,
+        prefix_save_path=prefix_save_path,
+        seq_len=seq_len,
+        merge_overlap_len=merge_overlap_len,
         chrom_sizes_path=chrom_sizes_path,
-        output_prefix=prefix_path,
-        bed_path=prefix_path+'_merged.bed',
-        activity_path=prefix_path+'_activity.tsv',
-        ignore_y=ignore_y,
-        ignore_auxiliary=ignore_auxiliary,
+        bed_path=prefix_save_path+'_merged.bed',
+        activity_path=prefix_save_path+'_activity.tsv',
+        ignore_chr_y=ignore_chr_y,
+        ignore_auxiliary_chr=ignore_auxiliary_chr,
     )
-    print("Saved to: %s_merged_bed and %s_activity.tsv"%(prefix_path, prefix_path))
+    print("Saved to: %s_merged_bed and %s_activity.tsv"%(prefix_save_path, prefix_save_path))
 
 
     # convert merged bed file into fasta file (eg. prefix.fa)
     print("Extracting sequences from reference genome: %s"%(genome_path))
     subprocess.call(
         "bedtools getfasta -fi {} -s -bed {} -fo {}".format(
-            genome_path, prefix_path+"_merged.bed", prefix_path+".fa"
+            genome_path, prefix_save_path+"_merged.bed", prefix_save_path+".fa"
         ),
         shell=True,
     )
 
     # load sequences from fasta file
     print("Processing files -- converting to one-hot and generating labels")
-    seq_vecs = convert_fasta_to_onehot(prefix_path+".fa", alphabet, uncertain_N)
-    os.remove(prefix_path+".fa")
+    seq_vecs = convert_fasta_to_onehot(prefix_save_path+".fa", alphabet, uncertain_N)
+    os.remove(prefix_save_path+".fa")
 
     # load scores
-    seq_targets, target_labels = parse_targets(prefix_path+"_activity.tsv")
+    seq_targets, target_labels = parse_targets(prefix_save_path+"_activity.tsv")
 
     # align and construct input matrix
     seqs, targets, coords = align_seqs_targets(seq_vecs, seq_targets, sort=False)
 
     # split dataset by chromosome
     print("Splittig dataset into:")
-    print("    validation: %s"%(valid_chrom))
-    print("    test: %s"%(test_chrom))
-    train, valid, test = split_dataset_chrom(seqs, targets, coords, valid_chrom, test_chrom)
+    print("    validation: %s"%(valid_chr))
+    print("    test: %s"%(test_chr))
+    train, valid, test = split_dataset_chrom(seqs, targets, coords, valid_chr, test_chr)
 
     # data splits
-    save_path = prefix_path+'.h5'
-    print("Saving to: %s"%(save_path))
-    with h5py.File(save_path, "w") as fout:
+    prefix_save_path = prefix_save_path+'.h5'
+    print("Saving to: %s"%(prefix_save_path))
+    with h5py.File(prefix_save_path, "w") as fout:
         fout.create_dataset("x_train", data=train[0], compression="gzip")
         fout.create_dataset("y_train", data=train[1], compression="gzip")
         fout.create_dataset("coords_train", data=train[2].astype("S"), compression="gzip")
@@ -232,14 +233,14 @@ def process_data(
 
 def generate_multitask_bed(
     exp_bed_list_path,
-    feature_size=1000,
-    merge_overlap=200,
+    prefix_save_path=None,
+    seq_len=1000,
+    merge_overlap_len=200,
     chrom_sizes_path=None,
-    output_prefix=None,
-    bed_path="merged.bed",
-    activity_path="activity.tsv",
-    ignore_y=False,
-    ignore_auxiliary=False,
+    bed_path="./merged.bed",
+    activity_path="./activity.tsv",
+    ignore_chr_y=False,
+    ignore_auxiliary_chr=False,
 ):
 
     """Merge multiple bed files to select sample sequence regions with at least one
@@ -253,21 +254,21 @@ def generate_multitask_bed(
         Location of the sample file containing experiment label and their corresponding
         file locations. Should be a two column text file, first row contains label,
         second row contain directory for the .bed/.bed.gz file.
-    feature_size: int, optional
+    seq_len: int, optional
         Length of the sequence region per sample in output. Default to 1000.
-    merge_overlap: int, optional
-        After adjusting peaks into feature_size, if two peak regions overlaps more than
+    merge_overlap_len: int, optional
+        After adjusting peaks into seq_len, if two peak regions overlaps more than
         this amount, they will be re-centered and merged into a single sample. Defaults
         to 200.
-    output_prefix: str, optional
+    prefix_save_path: str, optional
         Location and naming of the output bed file. Default to 'features.bed'
-    chrom_lenghts_file: str, optional
+    chr_lenghts_file: str, optional
         Location of the chrom.sizes file. Default to None.
     db_act_file: str, optional
         Location of the existing database activity table. Defaults to None.
     db_bed: str, optional
         Location of the existing database .bed file. Defaults to None.
-    ignore_auxiliary: bool, optional
+    ignore_auxiliary_chr: bool, optional
         Ignore auxiliary chromosomes. Defaults to False.
     no_db_acticity: bool, optional
         Whether to pass along the activities of the database sequences. Defaults to
@@ -280,8 +281,8 @@ def generate_multitask_bed(
     Examples
     --------
     >>> multitask_bed_generation(
-        example_file,chrom_lens_file='/data/hg38.chrom.size',
-        feature_size=1000,merge_overlap=200,output_prefix='/data/bed')
+        example_file,chr_lens_file='/data/hg38.chrom.size',
+        seq_len=1000,merge_overlap_len=200,prefix_save_path='/data/bed')
     """
 
     if not exp_bed_list_path:
@@ -308,12 +309,12 @@ def generate_multitask_bed(
         target_bedpaths.append(a[1])
 
     # read in chromosome lengths
-    chrom_lens = {}
+    chr_lens = {}
     if chrom_sizes_path is not None:
-        chrom_lens = {}
+        chr_lens = {}
         for line in open(chrom_sizes_path):
             a = line.split()
-            chrom_lens[a[0]] = int(a[1])
+            chr_lens[a[0]] = int(a[1])
     else:
         print(
             "Warning: chromosome lengths not provided, so regions near ends may be"
@@ -324,8 +325,8 @@ def generate_multitask_bed(
     #################################################################
     # save peaks from all bed files to unified chromosome-specific files
     #################################################################
-    chrom_file_dict = {}
-    chrom_fout_dict = {}
+    chr_file_dict = {}
+    chr_fout_dict = {}
     for i, bedpath in enumerate(target_bedpaths):
         if bedpath[-3:] == ".gz":
             bed_in = gzip.open(bedpath, "rt")
@@ -359,67 +360,67 @@ def generate_multitask_bed(
                 a[6] = str(target_index[i])
     
                 # open chromosome file if doesn't already exist
-                chrom_key = (chrom, strand)
-                if chrom_key not in chrom_fout_dict:
-                    chrom_file_dict[chrom_key] = "%s_%s_%s.bed" % (
-                        output_prefix,
+                chr_key = (chrom, strand)
+                if chr_key not in chr_fout_dict:
+                    chr_file_dict[chr_key] = "%s_%s_%s.bed" % (
+                        prefix_save_path,
                         chrom,
                         strand,
                     )
-                    chrom_fout_dict[chrom_key] = open(chrom_file_dict[chrom_key], "w")
+                    chr_fout_dict[chr_key] = open(chr_file_dict[chr_key], "w")
 
                 # append entry into chromosome specific file, merging all bed files    
-                print("\t".join(a[:7]), file=chrom_fout_dict[chrom_key])
+                print("\t".join(a[:7]), file=chr_fout_dict[chr_key])
 
         bed_in.close()
 
     # close chromosome-specific files
-    for chrom_key in chrom_fout_dict:
-        chrom_fout_dict[chrom_key].close()
+    for chr_key in chr_fout_dict:
+        chr_fout_dict[chr_key].close()
 
     # if ignore Y, filter data
-    if ignore_y:
+    if ignore_chr_y:
         for orient in "+-":
-            chrom_key = ("chrY", orient)
-            if chrom_key in chrom_file_dict:
+            chr_key = ("chrY", orient)
+            if chr_key in chr_file_dict:
                 print("Ignoring chrY %s" % orient, file=sys.stderr)
-                os.remove(chrom_file_dict[chrom_key])
-                del chrom_file_dict[chrom_key]
+                os.remove(chr_file_dict[chr_key])
+                del chr_file_dict[chr_key]
 
     # if ignore auxiliary, filter data
-    if ignore_auxiliary:
+    if ignore_auxiliary_chr:
         primary_re = re.compile("chr\\d+$")
-        for chrom_key in chrom_file_dict.keys():
-            chrom, strand = chrom_key
+        for chr_key in chr_file_dict.keys():
+            chrom, strand = chr_key
             primary_m = primary_re.match(chrom)
             if not primary_m and chrom != "chrX":
                 print("Ignoring %s %s" % (chrom, strand), file=sys.stderr)
-                os.remove(chrom_file_dict[chrom_key])
-                del chrom_file_dict[chrom_key]
+                os.remove(chr_file_dict[chr_key])
+                del chr_file_dict[chr_key]
 
 
     #################################################################
     # sort chromosome-specific files
     #################################################################
-    for chrom_key in chrom_file_dict:
-        chrom, strand = chrom_key
-        chrom_sbed = "%s_%s_%s_sort.bed" % (output_prefix, chrom, strand)
-        sort_cmd = "sortBed -i %s > %s" % (chrom_file_dict[chrom_key], chrom_sbed)
+    for chr_key in chr_file_dict:
+        chrom, strand = chr_key
+        chrom_sbed = "%s_%s_%s_sort.bed" % (prefix_save_path, chrom, strand)
+        sort_cmd = "sortBed -i %s > %s" % (chr_file_dict[chr_key], chrom_sbed)
         subprocess.call(sort_cmd, shell=True)
-        os.remove(chrom_file_dict[chrom_key])
-        chrom_file_dict[chrom_key] = chrom_sbed
+        os.remove(chr_file_dict[chr_key])
+        chr_file_dict[chr_key] = chrom_sbed
 
 
     #################################################################
     # parse chromosome-specific files
     #################################################################
-    final_bed_out = open("%s_merged.bed" % output_prefix, "w")
+    final_bed_out = open("%s_merged.bed" % prefix_save_path, "w")
 
-    for chrom_key in chrom_file_dict:
-        chrom, strand = chrom_key
+    for chr_key in chr_file_dict:
+        chrom, strand = chr_key
 
         open_peaks = []
-        for line in open(chrom_file_dict[chrom_key], "rt"):
+        for line in open(chr_file_dict[chr_key], "rt"):
             a = line.split("\t")
             a[-1] = a[-1].rstrip()
 
@@ -428,7 +429,7 @@ def generate_multitask_bed(
             peak_end = int(a[2])
             peak_act = _activity_set(a[6])
             peak = Peak(peak_start, peak_end, peak_act)
-            peak.extend(feature_size, chrom_lens[chrom])
+            peak.extend(seq_len, chr_lens[chrom])
 
             # check if peak is in new region or already active region
             if len(open_peaks) == 0:
@@ -438,13 +439,13 @@ def generate_multitask_bed(
 
             else:
                 # if beyond existing open peak
-                if open_end - merge_overlap <= peak.start:
+                if open_end - merge_overlap_len <= peak.start:
                     # close open peak
                     mpeaks = _merge_peaks(
                         open_peaks,
-                        feature_size,
-                        merge_overlap,
-                        chrom_lens[chrom],
+                        seq_len,
+                        merge_overlap_len,
+                        chr_lens[chrom],
                     )
 
                     # print to file
@@ -463,7 +464,7 @@ def generate_multitask_bed(
         if len(open_peaks) > 0:
             # close open peak
             mpeaks = _merge_peaks(
-                open_peaks, feature_size, merge_overlap, chrom_lens[chrom]
+                open_peaks, seq_len, merge_overlap_len, chr_lens[chrom]
             )
 
             # print to file
@@ -472,21 +473,21 @@ def generate_multitask_bed(
     final_bed_out.close()
 
     # clean
-    for chrom_key in chrom_file_dict:
-        os.remove(chrom_file_dict[chrom_key])
+    for chr_key in chr_file_dict:
+        os.remove(chr_file_dict[chr_key])
 
 
     #################################################################
-    # construct/update activity table
+    # generate activity table (i.e. names and binary labels for each class)
     #################################################################
-    final_act_out = open("%s_activity.tsv" % output_prefix, "w")
+    final_act_out = open("%s_activity.tsv" % prefix_save_path, "w")
 
     # print header
     cols = [""] + target_names
     print("\t".join(cols), file=final_act_out)
 
     # get coordinates and labels from bed file and save as activity table
-    for line in open("%s_merged.bed" % output_prefix):
+    for line in open("%s_merged.bed" % prefix_save_path):
         a = line.rstrip().split("\t")
         peak_id = "%s:%s-%s(%s)" % (a[0], a[1], a[2], a[5])
 
@@ -515,17 +516,17 @@ class Peak:
         self.end = end
         self.act = act
 
-    def extend(self, ext_len, chrom_len):
+    def extend(self, ext_len, chr_len):
         """Extend the peak to the given length
         Args:
             ext_len (int) : length to extend the peak to
-            chrom_len (int) : chromosome length to cap the peak at
+            chr_len (int) : chromosome length to cap the peak at
         """
         mid = _find_midpoint(self.start, self.end)
         self.start = max(0, mid - ext_len / 2)
         self.end = self.start + ext_len
-        if chrom_len and self.end > chrom_len:
-            self.end = chrom_len
+        if chr_len and self.end > chr_len:
+            self.end = chr_len
             self.start = self.end - ext_len
 
     def bed_str(self, chrom, strand):
@@ -549,12 +550,12 @@ class Peak:
         )
         return "\t".join(cols)
 
-    def merge(self, peak2, ext_len, chrom_len):
+    def merge(self, peak2, ext_len, chr_len):
         """Merge the given peak2 into this peak
         Args:
             peak2 (Peak)
             ext_len (int) : length to extend the merged peak to
-            chrom_len (int) : chromosome length to cap the peak at
+            chr_len (int) : chromosome length to cap the peak at
         """
         # find peak midpoints
         peak_mids = [_find_midpoint(self.start, self.end)]
@@ -570,8 +571,8 @@ class Peak:
         # extend to the full size
         merge_start = max(0, merge_mid - ext_len / 2)
         merge_end = merge_start + ext_len
-        if chrom_len and merge_end > chrom_len:
-            merge_end = chrom_len
+        if chr_len and merge_end > chr_len:
+            merge_end = chr_len
             merge_start = merge_end - ext_len
 
         # merge activities
@@ -589,7 +590,7 @@ def _find_midpoint(start, end):
     return int(mid)
 
 
-def _merge_peaks(peaks, peak_size, merge_overlap, chrom_len):
+def _merge_peaks(peaks, peak_size, merge_overlap_len, chr_len):
     """Merge and the list of Peaks.
     Repeatedly find the closest adjacent peaks and consider
     merging them together, until there are no more peaks
@@ -597,12 +598,12 @@ def _merge_peaks(peaks, peak_size, merge_overlap, chrom_len):
     Attributes:
         peaks (list[Peak]) : list of Peaks
         peak_size (int) : desired peak extension size
-        chrom_len (int) : chromsome length
+        chr_len (int) : chromsome length
     Returns:
         Peak representing the merger
     """
-    max_overlap = merge_overlap
-    while len(peaks) > 1 and max_overlap >= merge_overlap:
+    max_overlap = merge_overlap_len
+    while len(peaks) > 1 and max_overlap >= merge_overlap_len:
         # find largest overlap
         max_i = 0
         max_overlap = peaks[0].end - peaks[1].start
@@ -612,9 +613,9 @@ def _merge_peaks(peaks, peak_size, merge_overlap, chrom_len):
                 max_i = i
                 max_overlap = peaks_overlap
 
-        if max_overlap >= merge_overlap:
+        if max_overlap >= merge_overlap_len:
             # merge peaks
-            peaks[max_i].merge(peaks[max_i + 1], peak_size, chrom_len)
+            peaks[max_i].merge(peaks[max_i + 1], peak_size, chr_len)
 
             # remove merged peak
             peaks = peaks[: max_i + 1] + peaks[max_i + 2 :]
@@ -684,10 +685,10 @@ def convert_one_hot(sequences, alphabet="ACGT", uncertain_N=True):
     if sequences.ndim != 1:
         raise ValueError("array of sequences must be one-dimensional.")
     n_sequences = sequences.shape[0]
-    sequence_len = len(sequences[0])
+    seq_len = len(sequences[0])
 
     # Unpack strings into 2D array, where each point has one character.
-    s = np.zeros((n_sequences, sequence_len), dtype="U1")
+    s = np.zeros((n_sequences, seq_len), dtype="U1")
     for i in range(n_sequences):
         s[i] = list(sequences[i])
 
@@ -744,9 +745,9 @@ def align_seqs_targets(seq_vecs, seq_targets, sort=True):
 
 
 
-def split_dataset_chrom(x, y, coords, valid_chrom, test_chrom):
+def split_dataset_chrom(x, y, coords, valid_chr, test_chr):
 
-    def parse_held_out_chrom(x, y, coords, split_chroms):
+    def parse_held_out_chrom(x, y, coords, split_chr):
         """extract data according to chromosome"""
 
         # get list of chromosomes for each data entry
@@ -754,12 +755,12 @@ def split_dataset_chrom(x, y, coords, valid_chrom, test_chrom):
 
         # parse held out chrom data
         index = []
-        for chrom_index in split_chroms:
-            index.append(np.where(chrom_index == chrom_list)[0])
+        for chr_index in split_chr:
+            index.append(np.where(chr_index == chrom_list)[0])
         index = np.concatenate(index)
         return x[index], y[index], coords[index]
 
-    def remove_held_out_chrom(x, y, coords, remove_chroms):
+    def remove_held_out_chrom(x, y, coords, remove_chr):
         """remove data according to chromosome"""
 
         # get list of chromosomes for each data entry
@@ -770,8 +771,8 @@ def split_dataset_chrom(x, y, coords, valid_chrom, test_chrom):
         x_filt = np.copy(x)
         y_filt = np.copy(y)
         coords_filt = np.copy(coords)
-        for chrom_index in remove_chroms:
-            index = np.where(chrom_index == chrom_filt)[0]
+        for chr_index in remove_chr:
+            index = np.where(chr_index == chrom_filt)[0]
             chrom_filt = np.delete(chrom_filt, index, axis=0)
             x_filt = np.delete(x_filt, index, axis=0)
             y_filt = np.delete(y_filt, index, axis=0)
@@ -779,13 +780,13 @@ def split_dataset_chrom(x, y, coords, valid_chrom, test_chrom):
         return x_filt, y_filt, coords_filt
 
     # get list of held out chromosomes 
-    valid_chrom = ['chr'+chrom_index for chrom_index in valid_chrom.split(',')]
-    test_chrom  = ['chr'+chrom_index for chrom_index in test_chrom.split(',')]
+    valid_chr = ['chr'+chr_index for chr_index in valid_chr.split(',')]
+    test_chr  = ['chr'+chr_index for chr_index in test_chr.split(',')]
 
     # generate dataset
-    test  = parse_held_out_chrom(x, y, coords, test_chrom)
-    valid = parse_held_out_chrom(x, y, coords, valid_chrom)
-    train = remove_held_out_chrom(x, y, coords, valid_chrom+test_chrom)
+    test  = parse_held_out_chrom(x, y, coords, test_chr)
+    valid = parse_held_out_chrom(x, y, coords, valid_chr)
+    train = remove_held_out_chrom(x, y, coords, valid_chr+test_chr)
 
     return train, valid, test
 

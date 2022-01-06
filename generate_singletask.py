@@ -7,9 +7,9 @@ Parameters:
 -----------
 exp_bed_list: str
     path to tsv file that has 2 columns of names and bed paths to be merged
-prefix_path: str
+prefix_save_path: str
     path + prefix for all output files
-feature_size: str
+seq_len: str
     desired length of sequences
 merge_overlap: str
     if two peak regions overlaps more than this amount, they will be re-centered and merged into a single sample.
@@ -17,22 +17,22 @@ genome_path: str
     Path to reference genome 
 chrom_size:str
     Location for .chome.size file
-valid_chrom: str
+valid_chr: str
     Held out chromosomes for validation set. Separate chromosomes with commas. Eg. 7,8,9
-test_chrom: str
+test_chr: str
     Held out chromosomes for validation set. Separate chromosomes with commas. Eg. 7,8,9
 
 Example:
-$ python generate_singletask_binary.py -p ./pos.bed -n ./neg.bed -g ./genomes/hg38.fa -o ./test -f 200 -m 350 -v 8,9 -t 6,7
+$ python generate_singletask.py -p ./pos.bed -n ./neg.bed -g ./genomes/hg38.fa -o ./test -s 200 -m 350 -v 12,13 -t 7,8
 
 Test:
-$ python generate_singletask_binary.py -p ./test_singletask/ENCFF262MRD.bed.gz \
-                                       -n ./test_singletask/ENCFF759OLD.bed.gz \
-                                       -g ./genomes/hg38.fa \
-                                       -o ./test_singletask/REST_GM12878 \
-                                       -f 200 -m 350 -t 6,7 -v 8,9 \
-                                       --gc_match --uncertain_N --neg_pos_ratio 1.5 \
-                                       --seed 2019
+$ python generate_singletask.py -p ../data/test_singletask/ENCFF262MRD.bed.gz \
+                                -n ../data/test_singletask/ENCFF759OLD.bed.gz \
+                                -g ../data/genomes/hg38.fa \
+                                -o ../data/test_singletask/REST_GM12878 \
+                                -s 200 -m 350 -t 7,8 -v 12,13 \
+                                --gc_match --uncertain_N --neg_pos_ratio 1.5 \
+                                --seed 2019
 
 """
 
@@ -64,36 +64,38 @@ def main():
         help="Path to reference genome -- needed to extract sequences from bed files.",
     )
     parser.add_option(
-        '-o', "--prefix_path",
-        dest="prefix_path",
+        '-o', "--prefix_save_path",
+        dest="prefix_save_path",
         default="./experiment",
         help="Path and predix name for intermediate files (eg. merged peak bed file) and output h5 file.",
     )
     parser.add_option(
-        '-f', "--feature_size",
-        dest="feature_size",
+        '-s', "--seq_len",
+        dest="seq_len",
         default=200,
         type='int',
         help="Length of selected sequence regions.",
     )
     parser.add_option(
-        '-m', "--max_size",
-        dest="max_size",
+        '-m', "--max_len_thresh",
+        dest="max_len_thresh",
         default=350,
         type='int',
         help="Length of selected sequence regions.",
     )
     parser.add_option(
-        '-r', '--filter_N', 
+        '-f', '--filter_N', 
         dest = 'filter_N', 
         default=False, 
         action="store_true",
+        help='Remove sequences with N charcters if set to True.'
     )
     parser.add_option(
         '-u', '--uncertain_N', 
         dest = 'uncertain_N', 
         default=False, 
         action="store_true",
+        help='If True, sets positions in sequences with N charcters to 0.25. Otherwise, it remains a 0.'
     )
     parser.add_option(
         '-c', '--gc_match', 
@@ -103,22 +105,22 @@ def main():
         help='Match GC content of negative sequences with positive sequences.'
     )
     parser.add_option(
-        '-x', "--neg_pos_ratio",
+        '-r', "--neg_pos_ratio",
         dest="neg_pos_ratio",
         default=1.,
         type='float',
         help="Ratio of negative data to postivie data. If more negative data, will downsample to this ratio.",
     )
     parser.add_option(
-        '-v', "--valid_chrom", 
-        dest="valid_chrom", 
+        '-v', "--valid_chr", 
+        dest="valid_chr", 
         default='6,7', 
         type="str", 
         help="Held out chromosomes for validation set. Separate chromosomes with commas."
     )
     parser.add_option(
-        '-t', '--test_chrom', 
-        dest = 'test_chrom', 
+        '-t', '--test_chr', 
+        dest = 'test_chr', 
         default='5,8', 
         type='str', 
         help='Held out chromosomes for test set. Separate chromosomes with commas.'
@@ -145,34 +147,33 @@ def main():
         help='Alphabet for one-hot encoding.'
     )
     parser.add_option(
-        '-s', "--seed",
+        '-z', "--seed",
         dest="seed",
         default=None,
         type='int',
         help="Random number seed for reproducibility.",
     )
     (options, args) = parser.parse_args()
-    prefix_path = options.prefix_path
+    prefix_save_path = options.prefix_save_path
 
     process_data(
         pos_path=options.pos_path,
         neg_path=options.neg_path,
+        prefix_save_path=options.prefix_save_path,
         genome_path=options.genome_path,
-        prefix_path=options.prefix_path,
-        feature_size=options.feature_size,
-        max_size=options.max_size,
+        seq_len=options.seq_len,
+        max_len_thresh=options.max_len_thresh,
         filter_N=options.filter_N,
         uncertain_N=options.uncertain_N,
         neg_pos_ratio=options.neg_pos_ratio,
         gc_match=options.gc_match,
-        valid_chrom=options.valid_chrom,
-        test_chrom=options.test_chrom,
+        valid_chr=options.valid_chr,
+        test_chr=options.test_chr,
         valid_frac=options.valid_frac,
         test_frac=options.test_frac,
         alphabet=options.alphabet,
         seed=options.seed,
     )
-
 
 
 
@@ -184,23 +185,23 @@ def main():
 def process_data(
     pos_path,
     neg_path,
+    prefix_save_path='./sample',
     genome_path='./hg38.fa',
-    prefix_path='./sample',
-    feature_size=200,
-    max_size=300,
+    seq_len=200,
+    max_len_thresh=300,
     filter_N=False,
     uncertain_N=True,
     gc_match=True,
     neg_pos_ratio=1,
-    valid_chrom='6,7',
-    test_chrom='4,8',
+    valid_chr='6,7',
+    test_chr='4,8',
     valid_frac=None,
     test_frac=None,
     alphabet="ACGT",
     seed=None,
 ):
     """Preprocess data for a single-class task."""
-    print(prefix_path)
+    print(prefix_save_path)
     print("Processing positive label data")
 
     # set random number seed
@@ -208,16 +209,16 @@ def process_data(
         np.random.seed(seed)
 
     # remove extremely large peaks
-    tf_filtered_path = prefix_path + "_pos_filtered.bed"
-    filter_max_length(pos_path, tf_filtered_path, max_size)
+    tf_filtered_path = prefix_save_path + "_pos_filtered.bed"
+    filter_max_length(pos_path, tf_filtered_path, max_len_thresh)
 
-    # create new bed file with feature_size enforced
-    pos_bed_path = prefix_path + "_pos_" + str(feature_size) + ".bed"
-    enforce_constant_size(tf_filtered_path, pos_bed_path, feature_size)
+    # create new bed file with seq_len enforced
+    pos_bed_path = prefix_save_path + "_pos_" + str(seq_len) + ".bed"
+    enforce_constant_size(tf_filtered_path, pos_bed_path, seq_len)
     pos_coords = get_bed_coords(pos_bed_path)
 
     # extract sequences from bed file and save to fasta file
-    pos_fasta_path = prefix_path + "_pos.fa"
+    pos_fasta_path = prefix_save_path + "_pos.fa"
     bedtools_getfasta(
         pos_bed_path, genome_path, output_path=pos_fasta_path, strand=True
     )
@@ -239,18 +240,18 @@ def process_data(
     print("Processing negative label data")
 
     # get non-overlap between pos peaks and neg peaks
-    neg_bed_path = prefix_path + "_nonoverlap.bed"
+    neg_bed_path = prefix_save_path + "_nonoverlap.bed"
     bedtools_intersect(
         neg_path, pos_path, neg_bed_path, write_a=True, nonoverlap=True
     )
 
-    # create new bed file with feature_size enforced
-    neg_bed_path2 = prefix_path + "_neg_" + str(feature_size) + ".bed"
-    enforce_constant_size(neg_bed_path, neg_bed_path2, feature_size)
+    # create new bed file with seq_len enforced
+    neg_bed_path2 = prefix_save_path + "_neg_" + str(seq_len) + ".bed"
+    enforce_constant_size(neg_bed_path, neg_bed_path2, seq_len)
     neg_coords = get_bed_coords(neg_bed_path2)
 
     # extract sequences from bed file and save to fasta file
-    neg_fasta_path = prefix_path + "_neg.fa"
+    neg_fasta_path = prefix_save_path + "_neg.fa"
     bedtools_getfasta(
         neg_bed_path2, genome_path, output_path=neg_fasta_path, strand=True
     )
@@ -304,16 +305,16 @@ def process_data(
         )
     else:
         print("Splittig dataset into:")
-        print("    validation: %s"%(valid_chrom))
-        print("    test: %s"%(test_chrom))
+        print("    validation: %s"%(valid_chr))
+        print("    test: %s"%(test_chr))
         train, valid, test = split_dataset_chrom(
-            one_hot, labels, coords, valid_chrom, test_chrom
+            one_hot, labels, coords, valid_chr, test_chr
         )
 
     # save to hdf5 file
-    save_path = prefix_path + ".h5"
-    print("Saving to: %s"%(save_path))
-    with h5py.File(save_path, "w") as fout:
+    file_path = prefix_save_path + ".h5"
+    print("Saving to: %s"%(file_path))
+    with h5py.File(file_path, "w") as fout:
         fout.create_dataset("x_train", data=train[0], compression="gzip")
         fout.create_dataset("y_train", data=train[1], compression="gzip")
         fout.create_dataset("coords_train", data=train[2].astype("S"), compression="gzip")
@@ -586,10 +587,10 @@ def convert_one_hot(sequences, alphabet="ACGT", uncertain_N=True):
     if sequences.ndim != 1:
         raise ValueError("array of sequences must be one-dimensional.")
     n_sequences = sequences.shape[0]
-    sequence_len = len(sequences[0])
+    seq_len = len(sequences[0])
 
     # Unpack strings into 2D array, where each point has one character.
-    s = np.zeros((n_sequences, sequence_len), dtype="U1")
+    s = np.zeros((n_sequences, seq_len), dtype="U1")
     for i in range(n_sequences):
         s[i] = list(sequences[i])
 
@@ -689,7 +690,7 @@ def split_dataset_random(x, y, coords, valid_frac=0.1, test_frac=0.2):
     return train, valid, test
 
 
-def split_dataset_chrom(x, y, coords, valid_chrom, test_chrom):
+def split_dataset_chrom(x, y, coords, valid_chr, test_chr):
 
     def parse_held_out_chrom(x, y, coords, split_chroms):
         """extract data according to chromosome"""
@@ -723,13 +724,13 @@ def split_dataset_chrom(x, y, coords, valid_chrom, test_chrom):
         return x_filt, y_filt, coords_filt
 
     # get list of held out chromosomes 
-    valid_chrom = ['chr'+chrom_index for chrom_index in valid_chrom.split(',')]
-    test_chrom  = ['chr'+chrom_index for chrom_index in test_chrom.split(',')]
+    valid_chr = ['chr'+chrom_index for chrom_index in valid_chr.split(',')]
+    test_chr  = ['chr'+chrom_index for chrom_index in test_chr.split(',')]
 
     # generate dataset
-    test  = parse_held_out_chrom(x, y, coords, test_chrom)
-    valid = parse_held_out_chrom(x, y, coords, valid_chrom)
-    train = remove_held_out_chrom(x, y, coords, valid_chrom+test_chrom)
+    test  = parse_held_out_chrom(x, y, coords, test_chr)
+    valid = parse_held_out_chrom(x, y, coords, valid_chr)
+    train = remove_held_out_chrom(x, y, coords, valid_chr+test_chr)
 
     return train, valid, test
 
