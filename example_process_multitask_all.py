@@ -5,16 +5,11 @@ import utils
 import generate_multitask
 
 
-cell_type = 'HepG2'
 base_path = '../tf'
 data_path = '../tf/bed'
 metadata_path = os.path.join(data_path, 'metadata.tsv')
 exp_bed_list_path = os.path.join(base_path, "exp_bed_list.tsv")
-criteria={'File assembly': "GRCh38",
-          'File format': 'bed narrowPeak',
-          'Output type': 'IDR thresholded peaks',
-          'Biosample term name': cell_type,
-          }
+criteria=None
 label_list=['Experiment target', 'Biosample term name', 'Experiment accession']
 
 
@@ -26,7 +21,7 @@ summary = utils.generate_exp_bed_list(data_path, metadata_path, exp_bed_list_pat
 # generate the dataset and save to h5 file
 generate_multitask.process_data(
     exp_bed_list_path=exp_bed_list_path,
-    prefix_save_path=os.path.join(base_path, cell_type),
+    prefix_save_path=os.path.join(base_path, 'all'),
     genome_path='../genomes/hg38.fa',
     chrom_sizes_path ='../genomes/hg38.chrom.sizes',
     seq_len=1000,
