@@ -1,7 +1,4 @@
-import os
-import pandas as pd
-import numpy as np
-import generate_singletask
+import singletask
 
 
 tf_name = 'REST'  
@@ -21,7 +18,7 @@ alphabet = 'ACGT'           # alphabet for one-hot encoding -- note N is treated
 seed = 9919                 # random number seed for reproducibility -- random sampling occurs when downsampling negative set
 
 
-generate_singletask.process_data(
+singletask.process_data(
     pos_path=pos_path,
     neg_path=neg_path,
     prefix_save_path=prefix_save_path,
