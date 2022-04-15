@@ -1,8 +1,8 @@
-import os, sys, gzip, re, h5py
+import os, sys, gzip, re
 from collections import OrderedDict
 import numpy as np
-import subprocess
 import utils
+import bed_utils
 
 
 
