@@ -122,10 +122,10 @@ def process_data_h5(prefix_path, bigwig_paths, genome_path, alphabet='ACGT',
         if verbose:
           if np.mod(i+1, 50) == 0:
             print("    batch %d out of %d"%(i+1, num_batches))
-        one_hot = convert_one_hot_fast(seqs[i*batch_size:(i+1)*batch_size], alphabet=alphabet)#, uncertain_N=uncertain_N)
+        one_hot = convert_one_hot(seqs[i*batch_size:(i+1)*batch_size], alphabet=alphabet, uncertain_N=uncertain_N)
         dataset[i*batch_size:(i+1)*batch_size,:,:] = one_hot
       if num_seq > num_batches*batch_size:
-        one_hot = convert_one_hot_fast(seqs[num_batches*batch_size:], alphabet=alphabet)#, uncertain_N=uncertain_N)
+        one_hot = convert_one_hot(seqs[num_batches*batch_size:], alphabet=alphabet, uncertain_N=uncertain_N)
         dataset[num_batches*batch_size:,:,:] = one_hot    
 
       #--------------------------------------------------------------------------
