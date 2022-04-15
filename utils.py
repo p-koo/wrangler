@@ -1,7 +1,6 @@
 import os
 import pandas as pd
 import numpy as np
-import subprocess
 
 #-------------------------------------------------------------------------------
 # File handling
@@ -39,6 +38,31 @@ def check_filepath(data_path, filename, ext='bed'):
     return filepath + ".gz"
   else:
     return ""
+
+
+
+def _is_gzipped(filepath):
+  """Return `True` if the file is gzip-compressed.
+  This function does not depend on the suffix. Instead, the magic number of the file
+  is compared to the GZIP magic number `1f 8b`. 
+  """
+  with open(filepath, "rb") as f:
+    return f.read(2) == b"\x1f\x8b"
+
+
+def save_dataset_hdf5(filepath, train, valid, test, coords=False):
+  """Saves an h5 dataset based on train--> x, y, coords"""
+  with h5py.File(filepath, "w") as fout:
+    fout.create_dataset("x_train", data=train[0], compression="gzip")
+    fout.create_dataset("y_train", data=train[1], compression="gzip")
+    fout.create_dataset("x_valid", data=valid[0], compression="gzip")
+    fout.create_dataset("y_valid", data=valid[1], compression="gzip")
+    fout.create_dataset("x_test", data=test[0], compression="gzip")
+    fout.create_dataset("y_test", data=test[1], compression="gzip")
+    if coords:
+      fout.create_dataset("coords_train", data=train[2].astype("S"), compression="gzip")
+      fout.create_dataset("coords_valid", data=valid[2].astype("S"), compression="gzip")
+      fout.create_dataset("coords_test", data=test[2].astype("S"), compression="gzip")
 
 
 
@@ -158,22 +182,22 @@ def generate_exp_list_from_dir(
       extension of files to be included in experiment list
   """
 
-  file_paths = []
+  filepaths = []
   names = []
   for f in os.listdir(data_path):
     splits = f.split('.')
     if ext in splits:
       names.append(splits[0])
-      file_paths.append(os.path.join(data_path, f))
+      filepaths.append(os.path.join(data_path, f))
 
   if save_path:
     # save to file
     with open(save_path, "w") as fout:
-      for name, file_path in zip(names, file_paths):
-        fout.write("{}\t{}\n".format(name, file_path))
+      for name, filepath in zip(names, filepaths):
+        fout.write("{}\t{}\n".format(name, filepath))
 
   print('%d experiments processed in: %s'%(len(names), save_path))
-  return [names, file_paths]
+  return [names, filepaths]
 
 
 
@@ -247,6 +271,47 @@ def get_chrom_sizes(chrom_sizes_path):
     chrom_sizes[chrom] = int(size)
   return chrom_sizes
 
+
+
+
+def parse_fasta(filepath):
+  """Parse FASTA file into arrays of descriptions and sequence data.
+  Parameters
+  ----------
+  filepath : Path-like
+      FASTA file to parse. Can be gzip-compressed.
+  Returns
+  -------
+  tuple of two numpy arrays
+      The first array contains the sequences, and the second array contains the name
+      of each sequence. These arrays have the same length in the first dimension.
+  """
+  # FASTA format described here.
+  # https://blast.ncbi.nlm.nih.gov/Blast.cgi?CMD=Web&PAGE_TYPE=BlastDocs&DOC_TYPE=BlastHelp
+  descriptions = []
+  sequences = []
+  prev_line_was_sequence = False
+
+  with open(filepath, "rt") as f:  
+    for line in f:
+      line = line.strip()
+      # handle blank lines
+      if not line:
+        continue
+      is_description = line.startswith(">")
+      if is_description:
+        description = line[1:].strip()  # prune ">" char
+        descriptions.append(description)
+        prev_line_was_sequence = False
+      else:  # is sequence data
+        sequence = line.upper()
+        if prev_line_was_sequence:
+          # This accounts for sequences that span multiple lines.
+          sequences[-1] += sequence
+        else:
+          sequences.append(sequence)
+        prev_line_was_sequence = True
+  return np.array(sequences), np.array(descriptions)
 
 
 
@@ -340,7 +405,7 @@ def convert_one_hot(sequences, alphabet="ACGT", uncertain_N=True):
 
 def convert_fasta_to_onehot(fasta_file, alphabet='ACGT', uncertain_N=True):
   """open fasta and save one-hot in dictionary with coordinate as key"""
-  
+
   seq_vecs = OrderedDict()
   for line in open(fasta_file):
     if line[0] == ">":
@@ -350,12 +415,6 @@ def convert_fasta_to_onehot(fasta_file, alphabet='ACGT', uncertain_N=True):
 
   return seq_vecs
 
-
-
-
-#-------------------------------------------------------------------------------
-# Bedtools
-#-------------------------------------------------------------------------------
 
 
 def split_dataset_chrom(x, y, coords, valid_chr, test_chr):
@@ -402,232 +461,5 @@ def split_dataset_chrom(x, y, coords, valid_chr, test_chr):
   train = remove_held_out_chrom(x, y, coords, valid_chr+test_chr)
 
   return train, valid, test
-
-
-
-def _is_gzipped(filepath):
-  """Return `True` if the file is gzip-compressed.
-  This function does not depend on the suffix. Instead, the magic number of the file
-  is compared to the GZIP magic number `1f 8b`. 
-  """
-  with open(filepath, "rb") as f:
-    return f.read(2) == b"\x1f\x8b"
-
-
-
-#-------------------------------------------------------------------------------
-# Fasta
-#-------------------------------------------------------------------------------
-
-
-
-def parse_fasta(filepath):
-  """Parse FASTA file into arrays of descriptions and sequence data.
-  Parameters
-  ----------
-  filepath : Path-like
-      FASTA file to parse. Can be gzip-compressed.
-  Returns
-  -------
-  tuple of two numpy arrays
-      The first array contains the sequences, and the second array contains the name
-      of each sequence. These arrays have the same length in the first dimension.
-  """
-  # FASTA format described here.
-  # https://blast.ncbi.nlm.nih.gov/Blast.cgi?CMD=Web&PAGE_TYPE=BlastDocs&DOC_TYPE=BlastHelp
-  descriptions = []
-  sequences = []
-  prev_line_was_sequence = False
-
-  with open(filepath, "rt") as f:  
-    for line in f:
-      line = line.strip()
-      # handle blank lines
-      if not line:
-        continue
-      is_description = line.startswith(">")
-      if is_description:
-        description = line[1:].strip()  # prune ">" char
-        descriptions.append(description)
-        prev_line_was_sequence = False
-      else:  # is sequence data
-        sequence = line.upper()
-        if prev_line_was_sequence:
-          # This accounts for sequences that span multiple lines.
-          sequences[-1] += sequence
-        else:
-          sequences.append(sequence)
-        prev_line_was_sequence = True
-  return np.array(sequences), np.array(descriptions)
-
-
-
-#-------------------------------------------------------------------------------
-# Bedtools
-#-------------------------------------------------------------------------------
-
-def bedtools_getfasta(
-  bed_path, genome_path, output_path, strand=True, bedtools_exe="bedtools"
-):
-  """Extract DNA sequences from a fasta file based on feature coordinates.
-  Wrapper around `bedtools getfasta`. This function was made to
-  work with bedtools version 2.27.1. It is not guaranteed to work
-  with other versions. It is not even guaranteed to work with version 2.27.1, but
-  it could and probably will.
-  Parameters
-  ----------
-  genome_path : str, Path-like
-      path to reference genome in fasta format.
-  output_path : str, Path-like
-      Output FASTA file.
-  bed_path : str, Path-like
-      BED/GFF/VCF file of ranges to extract from `input_fasta`.
-  strand : bool
-      Force strandedness. If the feature occupies the antisense
-      strand, the squence will be reverse complemented.
-  exe_call : Path-like
-      The path to the `bedtools` executable. By default, uses `bedtools` in `$PATH`.
-  Returns
-  -------
-  Instance of `subprocess.CompletedProcess`.
-  """
-  args = [str(bedtools_exe), "getfasta"]
-  if strand:
-    args.append("-s")
-  args.extend(
-    ["-fi", str(genome_path), "-bed", str(bed_path), "-fo", str(output_path)]
-  )
-  try:
-    return subprocess.run(
-      args, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE
-    )
-  except subprocess.CalledProcessError as e:
-    raise subprocess.SubprocessError(e.stderr.decode()) from e
-
-
-
-def bedtools_intersect(
-  a, b, output_path, write_a=True, nonoverlap=True, bedtools_exe="bedtools",
-):
-  """Report overlaps between two feature files.
-  This is an incomplete wrapper around `bedtools intersect` version 2.27.1.
-  The set of arguments here does not include all of the command-line arguments.
-  Parameters
-  ----------
-  a : Path-like
-      First feature file <bed/gff/vcf/bam>.
-  b : Path-like
-      Second feature file <bed/gff/vcf/bam>.
-  output_bedfile : Path-like
-      Name of output file. Can be compressed (`.bed.gz`).
-  write_a : bool
-      Write the original entry in `a` for each overlap.
-  write_b : bool
-      Write the original entry in `b` for each overlap.
-  invert_match : bool
-      Only report those entries in `a` that have no overlaps with `b`.
-  bedtools_exe : Path-like
-      The path to the `bedtools` executable. By default, uses `bedtools` in `$PATH`.
-  Returns
-  -------
-  Instance of `subprocess.CompletedProcess`.
-  """
-  args = [str(bedtools_exe), "intersect"]
-  if write_a:
-    args.append("-wa")
-  if nonoverlap:
-    args.append("-v")
-  args.extend(["-a", str(a), "-b", str(b)])
-
-  try:
-    process = subprocess.run(
-      args, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE
-    )
-    if not process.stdout:
-      raise subprocess.SubprocessError(
-        f"empty stdout, aborting. stderr is {process.stderr.decode()}"
-      )
-    with open(output_path, mode="wb") as f:  # type: ignore
-      f.write(process.stdout)
-    return process
-  except subprocess.CalledProcessError as e:
-    raise subprocess.SubprocessError(e.stderr.decode()) from e
-
-
-
-def bedtools_sort(
-  bed_path, output_path, bedtools_exe="bedtools"
-):
-  """Sorts bed file.
-  Parameters
-  ----------
-  bed_path : str, Path-like
-      Input bed filepath.
-  output_path : str, Path-like
-      Sorted bed filepath.
-  exe_call : Path-like
-      The path to the `bedtools` executable. By default, uses `bedtools` in `$PATH`.
-  Returns
-  -------
-  Instance of `subprocess.CompletedProcess`.
-  """
-  args = [str(bedtools_exe), "sortBed"]
-  args.extend(
-    ["-i", str(bed_path), ">", str(output_path)]
-  )
-  try:
-    return subprocess.run(
-      args, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE
-    )
-  except subprocess.CalledProcessError as e:
-    raise subprocess.SubprocessError(e.stderr.decode()) from e
-
-
-
-def filter_blacklist(input_bed_path, output_bed_path, blacklist_bed_path):
-"""filter out blacklisted (i.e. unmappable regions)"""
-
-  subprocess.call(
-    "bedtools intersect -a {} -b {} -v > {}".format(
-      input_bed_path, blacklist_bed_path, output_bed_path
-    ),
-    shell=True,
-  )
-
-
-
-#-------------------------------------------------------------------------------
-# TF Records
-#-------------------------------------------------------------------------------
-
-
-def serialize_example(input, target, coord):
-  """
-  Creates a tf.train.Example message ready to be written to a file.
-  """
-  # Create a dictionary mapping the feature name to the tf.train.Example-compatible
-  # data type.
-  feature_dict = {
-      'coord': feature_str(coord),
-      'input': feature_bytes(input),
-      'target': feature_bytes(target),
-  }
-
-  # Create a Features message using tf.train.Example.
-
-  example_proto = tf.train.Example(features=tf.train.Features(feature=feature_dict))
-  return example_proto.SerializeToString()
-
-
-def feature_bytes(values):
-  """Convert numpy arrays to bytes features."""
-  values = values.flatten().tobytes()
-  return tf.train.Feature(bytes_list=tf.train.BytesList(value=[values]))
-
-def feature_str(values):
-  """Convert str to bytes features."""
-  # value = np.array(values)
-  return tf.train.Feature(bytes_list=tf.train.BytesList(value=[values]))
-
 
 

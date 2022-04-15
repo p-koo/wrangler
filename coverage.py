@@ -194,16 +194,11 @@ def process_data_tfr(prefix_path, bigwig_paths, genome_path, alphabet='ACGT',
     with tf.io.TFRecordWriter(prefix_path+'_'+set_name+'.tfr', tf_opts) as writer:
   
       # generate fasta file from bed coordinates
-      fasta_path = prefix_path+".fa"    
-      subprocess.call(
-        "bedtools getfasta -fi {} -s -bed {} -fo {}".format(
-          genome_path, prefix_path+'_'+set_name+'.bed', fasta_path
-        ),
-        shell=True,
-      )
+      utils.bedtools_getfasta(prefix_path+'_'+set_name+'.bed', genome_path, fasta_path)
+
 
       # parse fasta files
-      seqs, names = parse_fasta(fasta_path)
+      seqs, names = utils.parse_fasta(fasta_path)
       bin_size = len(seqs[0])
       os.remove(fasta_path)  # remove unnecessary files
 
@@ -211,6 +206,7 @@ def process_data_tfr(prefix_path, bigwig_paths, genome_path, alphabet='ACGT',
       bed_df = pd.read_csv(prefix_path+'_'+set_name+'.bed', delimiter='\t', header=None)
       num_bed_entries = len(bed_df)
 
+      # loop through entries and store in TF records file
       for i, row in bed_df.iterrows():
         if np.mod(i+1, 25000) == 0:
           if verbose:
@@ -231,7 +227,7 @@ def process_data_tfr(prefix_path, bigwig_paths, genome_path, alphabet='ACGT',
         for j, bw in enumerate(bigwig_files):
           coverage[:,j] = bw.values(chr, start, end)
 
-      example_proto = utils.serialize_example(one_hot, coverage, coord.encode())
-      writer.write(example_proto)
+        example_proto = utils.serialize_example(one_hot, coverage, coord.encode())
+        writer.write(example_proto)
 
 

@@ -3,6 +3,7 @@ import subprocess
 import numpy as np
 import pandas as pd
 import utils
+import bed_utils
 
 
 def process_data(
@@ -43,7 +44,7 @@ def process_data(
   if blacklist_path:
     print("removing unmappable regions defined by: %s"%(blacklist_path))
 
-    utils.bedtools_intersect(
+    bed_utils.bedtools_intersect(
       a=pos_bed_path,
       b=blacklist_path,
       output_path=pos_bed_path, 
@@ -55,7 +56,7 @@ def process_data(
 
   # extract sequences from bed file and save to fasta file
   pos_fasta_path = prefix_save_path + "_pos.fa"
-  utils.bedtools_getfasta(
+  bed_utils.bedtools_getfasta(
     pos_bed_path, genome_path, output_path=pos_fasta_path, strand=True
   )
 
@@ -63,7 +64,7 @@ def process_data(
   if blacklist_path:
     print("removing unmappable regions defined by: %s"%(blacklist_path))
 
-    utils.bedtools_intersect(
+    bed_utils.bedtools_intersect(
       a=pos_bed_path,
       b=blacklist_path,
       output_path=pos_bed_path, 
@@ -88,7 +89,7 @@ def process_data(
 
   # get non-overlap between pos peaks and neg peaks
   neg_bed_path = prefix_save_path + "_nonoverlap.bed"
-  utils.bedtools_intersect(
+  bed_utils.bedtools_intersect(
     neg_path, pos_path, neg_bed_path, write_a=True, nonoverlap=True
   )
 
@@ -100,7 +101,7 @@ def process_data(
   if blacklist_path:
     print("removing unmappable regions defined by: %s"%(blacklist_path))
 
-    utils.bedtools_intersect(
+    bed_utils.bedtools_intersect(
       a=neg_bed_path2,
       b=blacklist_path,
       output_path=neg_bed_path2, 
@@ -112,7 +113,7 @@ def process_data(
 
   # extract sequences from bed file and save to fasta file
   neg_fasta_path = prefix_save_path + "_neg.fa"
-  utils.bedtools_getfasta(
+  bed_utils.bedtools_getfasta(
     neg_bed_path2, genome_path, output_path=neg_fasta_path, strand=True
   )
 
@@ -161,20 +162,21 @@ def process_data(
   train, valid, test = utils.split_dataset_chrom(
     one_hot, labels, coords, valid_chr, test_chr
   )
-
-  # save to hdf5 file
-  file_path = prefix_save_path + ".h5"
-  print("Saving to: %s"%(file_path))
-  with h5py.File(file_path, "w") as fout:
-    fout.create_dataset("x_train", data=train[0], compression="gzip")
-    fout.create_dataset("y_train", data=train[1], compression="gzip")
-    fout.create_dataset("coords_train", data=train[2].astype("S"), compression="gzip")
-    fout.create_dataset("x_valid", data=valid[0], compression="gzip")
-    fout.create_dataset("y_valid", data=valid[1], compression="gzip")
-    fout.create_dataset("coords_valid", data=valid[2].astype("S"), compression="gzip")
-    fout.create_dataset("x_test", data=test[0], compression="gzip")
-    fout.create_dataset("y_test", data=test[1], compression="gzip")
-    fout.create_dataset("coords_test", data=test[2].astype("S"), compression="gzip")
+  # save data
+  if save_tfr:
+    filepath = prefix_save_path+'_train.tfr'
+    print("Saving to: %s"%(filepath))
+    utils.write_TFRecord_dataset(filepath, train[0], train[1], train[2])
+    filepath = prefix_save_path+'_valid.tfr'
+    print("Saving to: %s"%(filepath))
+    utils.write_TFRecord_dataset(filepath, valid[0], valid[1], valid[2])
+    filepath = prefix_save_path+'_test.tfr'
+    print("Saving to: %s"%(filepath))
+    utils.write_TFRecord_dataset(filepath, test[0], test[1], test[2])
+  else:    
+    filepath = prefix_save_path+'.h5'
+    print("Saving to: %s"%(filepath))
+    utils.save_dataset_hdf5(filepath, train, valid, test, coords=True)
   print('%d train sequences'%(len(train[0])))
   print('%d valid sequences'%(len(valid[0])))
   print('%d test sequences '%(len(test[0])))

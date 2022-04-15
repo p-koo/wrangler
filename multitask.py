@@ -20,7 +20,8 @@ def process_data(
   uncertain_N=True,
   alphabet='ACGT',
   blacklist_path=None,        # path to blacklist bed file
-  standard_coord=False
+  standard_coord=False,
+  save_tfr=False,
 ):
 
   # generate a merged multitask bed file and activity table (outputs: prefix_merged.bed and prefix_activity.tsv)
@@ -42,14 +43,14 @@ def process_data(
   if blacklist_path:
     print("removing unmappable regions defined by: %s"%(blacklist_path))
 
-    utils.bedtools_intersect(
+    bed_utils.bedtools_intersect(
       a=prefix_save_path+"_merged.bed",
       b=blacklist_path,
       output_path= prefix_save_path+"_merged.bed", 
       write_a=False, nonoverlap=True
     )
 
-    utils.bedtools_intersect(
+    bed_utils.bedtools_intersect(
       a=prefix_save_path+"_activity.tsv",
       b=blacklist_path,
       output_path= prefix_save_path+"_activity.tsv", 
@@ -58,7 +59,7 @@ def process_data(
 
   # convert merged bed file into fasta file (eg. prefix.fa)
   print("Extracting sequences from reference genome: %s"%(genome_path))
-  utils.bedtools_getfasta(
+  bed_utils.bedtools_getfasta(
     bed_path=prefix_save_path+"_merged.bed", 
     genome_path=genome_path,
     output_path=prefix_save_path+".fa",
@@ -81,19 +82,21 @@ def process_data(
   print("    test: %s"%(test_chr))
   train, valid, test = utils.split_dataset_chrom(seqs, targets, coords, valid_chr, test_chr)
 
-  # data splits
-  prefix_save_path = prefix_save_path+'.h5'
-  print("Saving to: %s"%(prefix_save_path))
-  with h5py.File(prefix_save_path, "w") as fout:
-    fout.create_dataset("x_train", data=train[0], compression="gzip")
-    fout.create_dataset("y_train", data=train[1], compression="gzip")
-    fout.create_dataset("coords_train", data=train[2].astype("S"), compression="gzip")
-    fout.create_dataset("x_valid", data=valid[0], compression="gzip")
-    fout.create_dataset("y_valid", data=valid[1], compression="gzip")
-    fout.create_dataset("coords_valid", data=valid[2].astype("S"), compression="gzip")
-    fout.create_dataset("x_test", data=test[0], compression="gzip")
-    fout.create_dataset("y_test", data=test[1], compression="gzip")
-    fout.create_dataset("coords_test", data=test[2].astype("S"), compression="gzip")
+  # save data
+  if save_tfr:
+    filepath = prefix_save_path+'_train.tfr'
+    print("Saving to: %s"%(filepath))
+    utils.write_TFRecord_dataset(filepath, train[0], train[1], train[2])
+    filepath = prefix_save_path+'_valid.tfr'
+    print("Saving to: %s"%(filepath))
+    utils.write_TFRecord_dataset(filepath, valid[0], valid[1], valid[2])
+    filepath = prefix_save_path+'_test.tfr'
+    print("Saving to: %s"%(filepath))
+    utils.write_TFRecord_dataset(filepath, test[0], test[1], test[2])
+  else:    
+    filepath = prefix_save_path+'.h5'
+    print("Saving to: %s"%(filepath))
+    utils.save_dataset_hdf5(filepath, train, valid, test, coords=True)
   print('%d train sequences'%(len(train[0])))
   print('%d valid sequences'%(len(valid[0])))
   print('%d test sequences '%(len(test[0])))
@@ -271,7 +274,7 @@ def generate_multitask_bed(
   for chr_key in chr_file_dict:
     chrom, strand = chr_key
     chrom_sbed = "%s_%s_%s_sort.bed" % (prefix_save_path, chrom, strand)
-    utils.bedtools_sort(chr_file_dict[chr_key], chrom_sbed)
+    bed_utils.bedtools_sort(chr_file_dict[chr_key], chrom_sbed)
     os.remove(chr_file_dict[chr_key])
     chr_file_dict[chr_key] = chrom_sbed
 

@@ -12,9 +12,10 @@ ignore_auxiliary_chr = True
 data_path = utils.make_directory(base_path, cell_type)           # path to data
 exp_list_bed_path = os.path.join(base_path, "exp_list_bed.tsv")  # filename to save list of experiments-2columns (name    datapath)
 criteria={'File assembly': "GRCh38",                                             # criteria for narrowing down files to process
-          'File format': 'bed narrowPeak',
-          'Output type': 'IDR thresholded peaks',
-          'Biosample term name': cell_type,             
+          'File format': 'bigWig',
+          'Output type': 'fold change over control',
+          'Biosample term name': 'GM12878',     
+          'Biological replicate(s)': '1, 2',        
           }
 label_list=['Experiment target', 'Biosample term name', 'Experiment accession']  # used to name experiment
 
