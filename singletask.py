@@ -5,7 +5,7 @@ import pandas as pd
 import utils
 
 
-def process_singletask(
+def process_data(
   pos_path,
   neg_path,
   prefix_save_path='./sample',
@@ -58,7 +58,7 @@ def process_singletask(
   utils.bedtools_getfasta(
     pos_bed_path, genome_path, output_path=pos_fasta_path, strand=True
   )
-  
+
   # remove ENCODE blacklist sites if provided
   if blacklist_path:
     print("removing unmappable regions defined by: %s"%(blacklist_path))
@@ -365,7 +365,7 @@ def filter_nonsense_sequences(sequences):
 
 
 def match_gc_content(pos_one_hot, neg_one_hot, neg_pos_ratio=1):
-
+  """match the GC content of negative set (which is larger) as positive set"""
   N, L, A = pos_one_hot.shape
   gc_pos = np.sum(np.sum(pos_one_hot[:,:,[1,2]], axis=2), axis=1)/L
   gc_neg = np.sum(np.sum(neg_one_hot[:,:,[1,2]], axis=2), axis=1)/L

@@ -6,7 +6,7 @@ import utils
 
 
 
-def process_multitask(
+def process_data(
   exp_list_path,
   prefix_save_path,
   genome_path,
@@ -521,6 +521,7 @@ def activity_set(act_cs):
 
 
 def parse_targets(targets_file):
+  """Load activity file"""
   seq_targets = OrderedDict()
   for line in open(targets_file):
     a = line.split()
@@ -532,6 +533,7 @@ def parse_targets(targets_file):
 
 
 def align_seqs_targets(seq_vecs, seq_targets, sort=True):
+  """Align and construct input matrix"""
   if sort:
     seq_headers = sorted(seq_vecs.keys())
   else:

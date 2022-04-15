@@ -10,6 +10,8 @@ def whole_chrom_bed(bin_size, prefix_path, chrom_sizes_path,
                     valid_chr='11,12', test_chr='7,8', 
                     ignore_chr_y=True, ignore_auxiliary_chr=True,
                     verbose=True):
+  """Generate bed files for train, valid, and test sets"""
+
   if not stride:   # if no stride, then make non-overlapping bins
     stride = bin_size
 
@@ -73,7 +75,8 @@ def whole_chrom_bed(bin_size, prefix_path, chrom_sizes_path,
 
 def process_data_h5(prefix_path, bigwig_paths, genome_path, alphabet='ACGT', 
                     uncertain_N=True, batch_size=512, verbose=True):
-
+  """process and save to h5 file"""
+  
   set_names = ['train', 'valid', 'test']
 
   # load bigwig files
@@ -171,7 +174,8 @@ def process_data_h5(prefix_path, bigwig_paths, genome_path, alphabet='ACGT',
 
 def process_data_tfr(prefix_path, bigwig_paths, genome_path, alphabet='ACGT', 
                      uncertain_N=True, standard_coord=False, verbose=True):
- 
+   """process and save to TF records"""
+
   set_names = ['valid', 'test', 'train']
 
   # load bigwig files

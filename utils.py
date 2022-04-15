@@ -339,6 +339,8 @@ def convert_one_hot(sequences, alphabet="ACGT", uncertain_N=True):
 
 
 def convert_fasta_to_onehot(fasta_file, alphabet='ACGT', uncertain_N=True):
+  """open fasta and save one-hot in dictionary with coordinate as key"""
+  
   seq_vecs = OrderedDict()
   for line in open(fasta_file):
     if line[0] == ">":
