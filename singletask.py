@@ -44,7 +44,7 @@ def process_data(
   if blacklist_path:
     print("removing unmappable regions defined by: %s"%(blacklist_path))
 
-    bed_utils.bedtools_intersect(
+    bed_utils.bed_intersect(
       a=pos_bed_path,
       b=blacklist_path,
       output_path=pos_bed_path, 
@@ -56,7 +56,7 @@ def process_data(
 
   # extract sequences from bed file and save to fasta file
   pos_fasta_path = prefix_save_path + "_pos.fa"
-  bed_utils.bedtools_getfasta(
+  bed_utils.bed_getfasta(
     pos_bed_path, genome_path, output_path=pos_fasta_path, strand=True
   )
 
@@ -64,7 +64,7 @@ def process_data(
   if blacklist_path:
     print("removing unmappable regions defined by: %s"%(blacklist_path))
 
-    bed_utils.bedtools_intersect(
+    bed_utils.bed_intersect(
       a=pos_bed_path,
       b=blacklist_path,
       output_path=pos_bed_path, 
@@ -89,7 +89,7 @@ def process_data(
 
   # get non-overlap between pos peaks and neg peaks
   neg_bed_path = prefix_save_path + "_nonoverlap.bed"
-  bed_utils.bedtools_intersect(
+  bed_utils.bed_intersect(
     neg_path, pos_path, neg_bed_path, write_a=True, nonoverlap=True
   )
 
@@ -101,7 +101,7 @@ def process_data(
   if blacklist_path:
     print("removing unmappable regions defined by: %s"%(blacklist_path))
 
-    bed_utils.bedtools_intersect(
+    bed_utils.bed_intersect(
       a=neg_bed_path2,
       b=blacklist_path,
       output_path=neg_bed_path2, 
@@ -113,7 +113,7 @@ def process_data(
 
   # extract sequences from bed file and save to fasta file
   neg_fasta_path = prefix_save_path + "_neg.fa"
-  bed_utils.bedtools_getfasta(
+  bed_utils.bed_getfasta(
     neg_bed_path2, genome_path, output_path=neg_fasta_path, strand=True
   )
 

@@ -1,6 +1,7 @@
 import os
 import coverage
 import utils
+import encode_utils
 
 bin_size = 2048
 stride = None
@@ -26,7 +27,7 @@ blacklist_path = './hg38-blacklist.v2.bed.gz'
 
 
 # generate an experiment list file w/ paths of bed files to be merged
-summary = utils.generate_exp_list_from_metadata(data_path, metadata_path, exp_list_bed_path, 
+summary = encode_utils.generate_exp_list_from_metadata(data_path, metadata_path, exp_list_bed_path, 
                                                 criteria, label_list, download=True, ext='bigWig')
 
 # get list of bigwig_paths

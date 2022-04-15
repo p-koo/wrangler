@@ -43,14 +43,14 @@ def process_data(
   if blacklist_path:
     print("removing unmappable regions defined by: %s"%(blacklist_path))
 
-    bed_utils.bedtools_intersect(
+    bed_utils.bed_intersect(
       a=prefix_save_path+"_merged.bed",
       b=blacklist_path,
       output_path= prefix_save_path+"_merged.bed", 
       write_a=False, nonoverlap=True
     )
 
-    bed_utils.bedtools_intersect(
+    bed_utils.bed_intersect(
       a=prefix_save_path+"_activity.tsv",
       b=blacklist_path,
       output_path= prefix_save_path+"_activity.tsv", 
@@ -59,7 +59,7 @@ def process_data(
 
   # convert merged bed file into fasta file (eg. prefix.fa)
   print("Extracting sequences from reference genome: %s"%(genome_path))
-  bed_utils.bedtools_getfasta(
+  bed_utils.bed_getfasta(
     bed_path=prefix_save_path+"_merged.bed", 
     genome_path=genome_path,
     output_path=prefix_save_path+".fa",
@@ -274,7 +274,7 @@ def generate_multitask_bed(
   for chr_key in chr_file_dict:
     chrom, strand = chr_key
     chrom_sbed = "%s_%s_%s_sort.bed" % (prefix_save_path, chrom, strand)
-    bed_utils.bedtools_sort(chr_file_dict[chr_key], chrom_sbed)
+    bed_utils.bed_sort(chr_file_dict[chr_key], chrom_sbed)
     os.remove(chr_file_dict[chr_key])
     chr_file_dict[chr_key] = chrom_sbed
 

@@ -1,5 +1,6 @@
 import os
 import utils
+import encode_utils
 import multitask
 
 
@@ -19,7 +20,7 @@ label_list=['Experiment target', 'Biosample term name', 'Experiment accession'] 
 
 
 # generate an experiment list file w/ paths of bed files to be merged
-summary = utils.generate_exp_list_from_metadata(data_path, metadata_path, exp_list_bed_path, 
+summary = encode_utils.generate_exp_list_from_metadata(data_path, metadata_path, exp_list_bed_path, 
 											    criteria, label_list, download=True, ext='bed')
 
 

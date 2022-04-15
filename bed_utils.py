@@ -1,6 +1,6 @@
 import subprocess
 
-def bedtools_getfasta(
+def bed_getfasta(
   bed_path, genome_path, output_path, strand=True, bedtools_exe="bedtools"
 ):
   """Extract DNA sequences from a fasta file based on feature coordinates.
@@ -40,7 +40,7 @@ def bedtools_getfasta(
 
 
 
-def bedtools_intersect(
+def bed_intersect(
   a, b, output_path, write_a=True, nonoverlap=True, bedtools_exe="bedtools",
 ):
   """Report overlaps between two feature files.
@@ -89,7 +89,7 @@ def bedtools_intersect(
 
 
 
-def bedtools_sort(
+def bed_sort(
   bed_path, output_path, bedtools_exe="bedtools"
 ):
   """Sorts bed file.

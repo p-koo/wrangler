@@ -3,6 +3,7 @@ import numpy as np
 import pandas as pd
 import tensorflow as tf
 import utils
+import bed_utils
 
 
 def whole_chrom_bed(bin_size, prefix_path, chrom_sizes_path, 
@@ -58,9 +59,9 @@ def whole_chrom_bed(bin_size, prefix_path, chrom_sizes_path,
   if blacklist_path:
     if verbose:
       print("Removing unmappable regions defined by: %s"%(blacklist_path))
-    utils.filter_blacklist(prefix_path+'_train_all.bed', prefix_path+'_train.bed', blacklist_path)
-    utils.filter_blacklist(prefix_path+'_valid_all.bed', prefix_path+'_valid.bed', blacklist_path)
-    utils.filter_blacklist(prefix_path+'_test_all.bed' , prefix_path+'_test.bed' , blacklist_path)
+    bed_utils.filter_blacklist(prefix_path+'_train_all.bed', prefix_path+'_train.bed', blacklist_path)
+    bed_utils.filter_blacklist(prefix_path+'_valid_all.bed', prefix_path+'_valid.bed', blacklist_path)
+    bed_utils.filter_blacklist(prefix_path+'_test_all.bed' , prefix_path+'_test.bed' , blacklist_path)
   else:
     sys.command('mv %s %s'%(prefix_path+'_train_all.bed', prefix_path+'_train.bed'))
     sys.command('mv %s %s'%(prefix_path+'_valid_all.bed', prefix_path+'_valid.bed'))
@@ -194,7 +195,7 @@ def process_data_tfr(prefix_path, bigwig_paths, genome_path, alphabet='ACGT',
     with tf.io.TFRecordWriter(prefix_path+'_'+set_name+'.tfr', tf_opts) as writer:
   
       # generate fasta file from bed coordinates
-      utils.bedtools_getfasta(prefix_path+'_'+set_name+'.bed', genome_path, fasta_path)
+      bed_utils.bed_getfasta(prefix_path+'_'+set_name+'.bed', genome_path, fasta_path)
 
 
       # parse fasta files
