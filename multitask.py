@@ -20,6 +20,7 @@ def process_multitask(
   uncertain_N=True,
   alphabet='ACGT',
   blacklist_path=None,        # path to blacklist bed file
+  standard_coord=False
 ):
 
   # generate a merged multitask bed file and activity table (outputs: prefix_merged.bed and prefix_activity.tsv)
@@ -32,6 +33,7 @@ def process_multitask(
     chrom_sizes_path=chrom_sizes_path,
     ignore_chr_y=ignore_chr_y,
     ignore_auxiliary_chr=ignore_auxiliary_chr,
+    standard_coord=standard_coord,
   )
   print("Saved to: %s_merged.bed and %s_activity.tsv"%(prefix_save_path, prefix_save_path))
 
@@ -106,6 +108,7 @@ def generate_multitask_bed(
   chrom_sizes_path=None,
   ignore_chr_y=False,
   ignore_auxiliary_chr=False,
+  standard_coord=False,
 ):
 
   """Merge multiple bed files to select sample sequence regions with at least one
@@ -140,6 +143,8 @@ def generate_multitask_bed(
       False.
   ignor_y: bool, optional
       Ignore Y chromsosome features. Defaults to False.
+  standard_coord: bool, optional
+      if True, then saves chr:start-end(strand), else it's chr_start_end
   Returns
   -------
   None
@@ -349,7 +354,10 @@ def generate_multitask_bed(
   # get coordinates and labels from bed file and save as activity table
   for line in open("%s_merged.bed" % prefix_save_path):
     a = line.rstrip().split("\t")
-    peak_id = "%s:%s-%s(%s)" % (a[0], a[1], a[2], a[5])
+    if standard:
+      peak_id = "%s:%s-%s(%s)" % (a[0], a[1], a[2], a[5])
+    else:
+      peak_id = "%s_%s_%s" % (a[0], a[1], a[2])
 
     # construct full activity vector
     peak_act = [0] * len(target_names)

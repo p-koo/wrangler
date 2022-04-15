@@ -50,7 +50,7 @@ def process_singletask(
     )
 
   # get coordinates
-  pos_coords = get_bed_coords(pos_bed_path)
+  pos_coords = get_bed_coords(pos_bed_path, standard_coord=False)
 
   # extract sequences from bed file and save to fasta file
   pos_fasta_path = prefix_save_path + "_pos.fa"
@@ -96,7 +96,7 @@ def process_singletask(
     )
 
   # get coordinates
-  neg_coords = get_bed_coords(neg_bed_path2)
+  neg_coords = get_bed_coords(neg_bed_path2, standard_coord=False)
 
   # extract sequences from bed file and save to fasta file
   neg_fasta_path = prefix_save_path + "_neg.fa"
@@ -293,7 +293,7 @@ def enforce_constant_size(bed_path, output_path, window):
 
 
 
-def get_bed_coords(bed_path):
+def get_bed_coords(bed_path, standard_coord=True):
   assert os.path.exists(bed_path), "No such bed file."
 
   # set up the compression argument
@@ -311,7 +311,10 @@ def get_bed_coords(bed_path):
 
   coords = []
   for a in zip(chrom, start, end, strand):
-    coords.append("%s:%s-%s(%s)" % (a[0], a[1], a[2], a[3]))
+    if standard_coord:
+      coords.append("%s:%s-%s(%s)" % (a[0], a[1], a[2], a[3]))
+    else:
+      coords.append("%s_%s_%s" % (a[0], a[1], a[2]))
   return np.array(coords)
 
 

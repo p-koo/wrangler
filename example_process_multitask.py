@@ -1,3 +1,4 @@
+import os
 import utils
 import multitask
 
@@ -19,7 +20,7 @@ label_list=['Experiment target', 'Biosample term name', 'Experiment accession'] 
 
 # generate an experiment list file w/ paths of bed files to be merged
 summary = utils.generate_exp_list_from_metadata(data_path, metadata_path, exp_list_bed_path, 
-											    criteria, label_list, download=False, ext='bed')
+											    criteria, label_list, download=True, ext='bed')
 
 
 # generate the dataset and save to h5 file
@@ -32,9 +33,10 @@ multitask.process_data(
     merge_overlap_len=200,
     valid_chr='12,13',
     test_chr='7,8',
-    ignore_chr_y=False,
-    ignore_auxiliary_chr=False,
+    ignore_chr_y=True,
+    ignore_auxiliary_chr=True,
     uncertain_N=True,
     alphabet='ACGT',
     blacklist_path=None,
+    standard_coord=False,
 ) 

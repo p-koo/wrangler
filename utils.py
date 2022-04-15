@@ -21,12 +21,7 @@ def make_directory(path, foldername, verbose=1):
   return outdir
 
 
-e
-def check_filepath(
-  data_path, 
-  filename,
-  ext='bed',
-):
+def check_filepath(data_path, filename, ext='bed'):
   """Generate path where the file is found.
   Parameters
   ----------
@@ -59,7 +54,6 @@ def generate_exp_list_from_metadata(
   label_list=['Assay', 'Experiment target', 'Biosample term name', 'Experiment accession'],
   download=True,
   exp_accession_list=[],
-  ext='bed'
 ):
   """Generate subset of metadata table and sample file for further processing.
   Parameters
@@ -76,7 +70,7 @@ def generate_exp_list_from_metadata(
       list of experiments to select, if empty select all in the metadata table
   """
 
-  def make_label(df_entry):
+  def make_label(df_entry, label_list):
     """Generate a unique label"""
     items = [
       str(c.values[0])
@@ -102,7 +96,7 @@ def generate_exp_list_from_metadata(
 
     # generate name
     exp_name = make_label(exp_df, label_list)
-
+   
     # filter by criteria
     if criteria:
       for name, value in criteria.items():
@@ -116,23 +110,25 @@ def generate_exp_list_from_metadata(
       
       # check to see if file exists
       if 'bed' in criteria['File format']:
-        ext = '.bed.gz'
+        ext = 'bed.gz'
       elif 'bigWig' == criteria['File format']:
-        ext = '.bigWig'
+        ext = 'bigWig'
       filepath = check_filepath(data_path, exp_df["File accession"].values[0], ext)
+      print(filepath)
       if not filepath: 
         if download:  # download file from link provided in metatable
+          print('  Downloading %s: %s'%(exp_name, exp_df['File download URL'].values[0]))
           download_path = os.path.join(data_path, exp_df["File accession"].values[0] + ext)
-          cmd = 'wget -O ' + download_path + ' ' + exp_df['File download URL']
+          cmd = 'wget -O ' + download_path + ' ' + exp_df['File download URL'].values[0]
           subprocess.call(cmd, shell='True')
-
-          if 'bed' in ext:
-            cmd = 'gunzip ' + download_path
-            subprocess.call(cmd, shell ='True')
+          filepath = os.path.join(data_path, exp_df["File accession"].values[0], ext)
+          #if 'bed' in ext:
+          #  cmd = 'gunzip ' + download_path
+          #  subprocess.call(cmd, shell ='True')
 
       # store results
       if filepath:
-        summary.append([make_label(exp_df), filepath])
+        summary.append([make_label(exp_df, label_list), filepath])
 
   if save_path:
     # save to file
@@ -145,38 +141,40 @@ def generate_exp_list_from_metadata(
 
 
 
+
 def generate_exp_list_from_dir(
     data_path,
     save_path,
-    ext='bw', # 'bed' or 'gz'
+    ext='bed', # 'bed' or 'gz'
 ):
-    """Generate a sample file for further processing based on files in a directory
-    Parameters
-    ----------
-    data_path : str
-        dataset directory with files
-    save_path : str
-        path where the bed file will be saved
-    ext : str
-        extension of files to be included in experiment list
-    """
+  """Generate a sample file for further processing based on files in a directory
+  Parameters
+  ----------
+  data_path : str
+      dataset directory with files
+  save_path : str
+      path where the bed file will be saved
+  ext : str
+      extension of files to be included in experiment list
+  """
 
-    file_paths = []
-    names = []
-    for f in os.path.listdir(data_path):
-        splits = f.split('.')
-        if splits[-1] == ext:
-            name.append(splits[0])
-            file_paths.append(f)
+  file_paths = []
+  names = []
+  for f in os.listdir(data_path):
+    splits = f.split('.')
+    if ext in splits:
+      names.append(splits[0])
+      file_paths.append(os.path.join(data_path, f))
 
-    if save_path:
-        # save to file
-        with open(save_path, "w") as fout:
-            for name, file_path in zip(names, file_paths):
-                fout.write("{}\t{}\n".format(name, file_path))
+  if save_path:
+    # save to file
+    with open(save_path, "w") as fout:
+      for name, file_path in zip(names, file_paths):
+        fout.write("{}\t{}\n".format(name, file_path))
 
-    print('%d experiments processed in: %s'%(len(names), save_path))
-    return summary
+  print('%d experiments processed in: %s'%(len(names), save_path))
+  return [names, file_paths]
+
 
 
 def get_path_from_metadata(
@@ -214,7 +212,7 @@ def get_path_from_metadata(
     if len(exp_df) != 0:
       sizes = []
       for j in range(len(exp_df)):
-          name = exp_df.iloc[[j]]["File accession"].values[0]
+        name = exp_df.iloc[[j]]["File accession"].values[0]
         filepath = check_filepath(data_path, name, ext)
         # store results
         if filepath:
@@ -233,9 +231,7 @@ def get_path_from_metadata(
 
 
 
-def get_chrom_sizes(
-  chrom_sizes_path
-):
+def get_chrom_sizes(chrom_sizes_path):
   """Load chrom sizes in dictionary,
   Parameters
     ----------
@@ -595,5 +591,41 @@ def filter_blacklist(input_bed_path, output_bed_path, blacklist_bed_path):
     ),
     shell=True,
   )
+
+
+
+#-------------------------------------------------------------------------------
+# TF Records
+#-------------------------------------------------------------------------------
+
+
+def serialize_example(input, target, coord):
+  """
+  Creates a tf.train.Example message ready to be written to a file.
+  """
+  # Create a dictionary mapping the feature name to the tf.train.Example-compatible
+  # data type.
+  feature_dict = {
+      'coord': feature_str(coord),
+      'input': feature_bytes(input),
+      'target': feature_bytes(target),
+  }
+
+  # Create a Features message using tf.train.Example.
+
+  example_proto = tf.train.Example(features=tf.train.Features(feature=feature_dict))
+  return example_proto.SerializeToString()
+
+
+def feature_bytes(values):
+  """Convert numpy arrays to bytes features."""
+  values = values.flatten().tobytes()
+  return tf.train.Feature(bytes_list=tf.train.BytesList(value=[values]))
+
+def feature_str(values):
+  """Convert str to bytes features."""
+  # value = np.array(values)
+  return tf.train.Feature(bytes_list=tf.train.BytesList(value=[values]))
+
 
 
