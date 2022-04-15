@@ -37,5 +37,9 @@ coverage.whole_chrom_bed(bin_size, prefix_path, chrom_sizes_path, blacklist_path
                          ignore_chr_y=ignore_chr_y, ignore_auxiliary_chr=ignore_auxiliary_chr)
 
 # generate h5 with one-hot inputs and coverage targets 
-coverage.process_data_h5(prefix_path, bigwig_paths, genome_path, 
-                         alphabet='ACGT', uncertain_N=True)
+coverage.process_data_h5(prefix_path, bigwig_paths, genome_path, alphabet='ACGT', 
+                         uncertain_N=True, standard_coords=False)
+
+
+coverage.process_data_tfr(prefix_path, bigwig_paths, genome_path, alphabet='ACGT', 
+                          uncertain_N=True, standard_coord=False)

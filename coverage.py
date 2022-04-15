@@ -170,7 +170,7 @@ def process_data_h5(prefix_path, bigwig_paths, genome_path, alphabet='ACGT',
 
 
 def process_data_tfr(prefix_path, bigwig_paths, genome_path, alphabet='ACGT', 
-                     uncertain_N=True, batch_size=512, standard_coord=False, verbose=True):
+                     uncertain_N=True, standard_coord=False, verbose=True):
  
   set_names = ['valid', 'test', 'train']
 

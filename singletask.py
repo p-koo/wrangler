@@ -20,6 +20,7 @@ def process_singletask(
   test_chr='4,8',
   alphabet="ACGT",
   blacklist_path=None,
+  standard_coord=False
   seed=None,
 ):
   """Preprocess data for a single-class task."""
@@ -57,6 +58,17 @@ def process_singletask(
   utils.bedtools_getfasta(
     pos_bed_path, genome_path, output_path=pos_fasta_path, strand=True
   )
+  
+  # remove ENCODE blacklist sites if provided
+  if blacklist_path:
+    print("removing unmappable regions defined by: %s"%(blacklist_path))
+
+    utils.bedtools_intersect(
+      a=pos_bed_path,
+      b=blacklist_path,
+      output_path=pos_bed_path, 
+      write_a=False, nonoverlap=True
+    )
 
   # parse sequence from fasta file
   pos_seq,_ = utils.parse_fasta(pos_fasta_path)

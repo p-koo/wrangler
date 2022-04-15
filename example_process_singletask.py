@@ -6,6 +6,7 @@ prefix_save_path = os.path.join('../data/test_singletask', tf_name)     # path t
 pos_path = '../data/test_singletask/ENCFF262MRD.bed.gz'                 # path to positive bd file
 neg_path = '../data/test_singletask/ENCFF759OLD.bed.gz'                 # path to negative bed file
 genome_path = '../data/genomes/hg38.fa'                                 # path to reference genome
+blacklist_path = '../data/hg38_unmap.fa'                                # path to blacklist (i.e. unmappable) regions
 seq_len = 200               # sequence length for the dataset
 max_len_thresh = 350        # remove bed entries with size greater than this threshold
 filter_N = False            # remove sequences with N characters
@@ -34,5 +35,7 @@ singletask.process_data(
     valid_frac=None, 
     test_frac=None,    # if set to a number, randomly split data into train, valid, and test
     alphabet=alphabet,
+    blacklist_path=blacklist_path,
+    standard_coord=False,
     seed=seed,
 )
