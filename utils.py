@@ -22,7 +22,7 @@ def make_directory(path, foldername, verbose=1):
 
 
 
-def _is_gzipped(filepath):
+def is_gzipped(filepath):
   """Return `True` if the file is gzip-compressed.
   This function does not depend on the suffix. Instead, the magic number of the file
   is compared to the GZIP magic number `1f 8b`. 

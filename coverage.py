@@ -75,7 +75,7 @@ def whole_chrom_bed(bin_size, prefix_path, chrom_sizes_path,
 
 
 def process_data_h5(prefix_path, bigwig_paths, genome_path, alphabet='ACGT', 
-                    uncertain_N=True, batch_size=512, verbose=True):
+                    uncertain_N=True, standard_coord=False, batch_size=512, verbose=True):
   """process and save to h5 file"""
   
   set_names = ['train', 'valid', 'test']
@@ -99,17 +99,11 @@ def process_data_h5(prefix_path, bigwig_paths, genome_path, alphabet='ACGT',
         print('  Processing inputs of %s set'%(set_name))
 
       # generate fasta file from bed coordinates
-      fasta_path = prefix_path+".fa"    
-      subprocess.call(
-        "bedtools getfasta -fi {} -s -bed {} -fo {}".format(
-          genome_path, prefix_path+'_'+set_name+'.bed', fasta_path
-        ),
-        shell=True,
-      )
+      fasta_path = prefix_path+".fa"   
+      bed_utils.bed_getfasta(prefix_path+'_'+set_name+'.bed', genome_path, fasta_path)
 
       # parse fasta files
-      seqs, names = parse_fasta(fasta_path)
-      #seqs = seqs[:10]
+      seqs, names = utils.parse_fasta(fasta_path)
       num_seq = len(seqs)
       bin_size = len(seqs[0])
       os.remove(fasta_path)  # remove unnecessary files
@@ -123,10 +117,10 @@ def process_data_h5(prefix_path, bigwig_paths, genome_path, alphabet='ACGT',
         if verbose:
           if np.mod(i+1, 50) == 0:
             print("    batch %d out of %d"%(i+1, num_batches))
-        one_hot = convert_one_hot(seqs[i*batch_size:(i+1)*batch_size], alphabet=alphabet, uncertain_N=uncertain_N)
+        one_hot = utils.convert_one_hot(seqs[i*batch_size:(i+1)*batch_size], alphabet=alphabet, uncertain_N=uncertain_N)
         dataset[i*batch_size:(i+1)*batch_size,:,:] = one_hot
       if num_seq > num_batches*batch_size:
-        one_hot = convert_one_hot(seqs[num_batches*batch_size:], alphabet=alphabet, uncertain_N=uncertain_N)
+        one_hot = utils.convert_one_hot(seqs[num_batches*batch_size:], alphabet=alphabet, uncertain_N=uncertain_N)
         dataset[num_batches*batch_size:,:,:] = one_hot    
 
       #--------------------------------------------------------------------------
@@ -154,7 +148,10 @@ def process_data_h5(prefix_path, bigwig_paths, genome_path, alphabet='ACGT',
         chr, start, end = row
 
         # save coordinates
-        coords.append("%s:%d-%d"%(chr, start, end))
+        if standard_coord:
+          coords.append("%s:%d-%d"%(chr, start, end))
+        else:            
+          coords.append("%s_%d_%d"%(chr, start, end))
 
         # concatenate coverage and save
         for j, bw in enumerate(bigwig_files):
@@ -196,7 +193,6 @@ def process_data_tfr(prefix_path, bigwig_paths, genome_path, alphabet='ACGT',
   
       # generate fasta file from bed coordinates
       bed_utils.bed_getfasta(prefix_path+'_'+set_name+'.bed', genome_path, fasta_path)
-
 
       # parse fasta files
       seqs, names = utils.parse_fasta(fasta_path)

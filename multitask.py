@@ -86,13 +86,13 @@ def process_data(
   if save_tfr:
     filepath = prefix_save_path+'_train.tfr'
     print("Saving to: %s"%(filepath))
-    utils.write_TFRecord_dataset(filepath, train[0], train[1], train[2])
+    tfr_utils.write_TFRecord_dataset(filepath, train[0], train[1], train[2])
     filepath = prefix_save_path+'_valid.tfr'
     print("Saving to: %s"%(filepath))
-    utils.write_TFRecord_dataset(filepath, valid[0], valid[1], valid[2])
+    tfr_utils.write_TFRecord_dataset(filepath, valid[0], valid[1], valid[2])
     filepath = prefix_save_path+'_test.tfr'
     print("Saving to: %s"%(filepath))
-    utils.write_TFRecord_dataset(filepath, test[0], test[1], test[2])
+    tfr_utils.write_TFRecord_dataset(filepath, test[0], test[1], test[2])
   else:    
     filepath = prefix_save_path+'.h5'
     print("Saving to: %s"%(filepath))

@@ -6,22 +6,22 @@ import bed_utils
 
 
 def process_data(
-  pos_path,
-  neg_path,
-  prefix_save_path='./sample',
-  genome_path='./hg38.fa',
-  seq_len=200,
-  max_len_thresh=300,
-  filter_N=False,
-  uncertain_N=True,
-  gc_match=True,
-  neg_pos_ratio=1,
-  valid_chr='6,7',
-  test_chr='4,8',
-  alphabet="ACGT",
-  blacklist_path=None,
-  standard_coord=False
-  seed=None,
+  pos_path,                    # path to positive bd file
+  neg_path,                    # path to negative bed file
+  prefix_save_path='./sample', # path to save file (eg. prefix_save_path + '.h5')
+  genome_path='./hg38.fa',     # path to reference genome
+  seq_len=200,                 # sequence length for the dataset
+  max_len_thresh=300,          # remove bed entries with size greater than this threshold
+  filter_N=False,              # remove sequences with N characters
+  uncertain_N=True,            # use 0.25 for N characters
+  gc_match=True,               # sub-sample negative set to match GC content of positive set
+  neg_pos_ratio=1,             # ratio of the amount of negative samples to positive samples (Eg. ratio=1 means balanced dataset)
+  valid_chr='6,7',             # validation set from held out chromosome
+  test_chr='4,8',              # test set from held out chromosome 
+  alphabet="ACGT",             # alphabet for one-hot encoding -- note N is treated as null vector unless uncertain_N flag is true
+  blacklist_path=None,         # path to blacklist regions (i.e. unmappable)
+  standard_coord=False,        # saves coordinates as chr1:start-end, otherwise chr_start_end
+  seed=None,                   # random number seed for reproducibility -- random sampling occurs when downsampling negative set
 ):
   """Preprocess data for a single-class task."""
   print(prefix_save_path)
@@ -216,7 +216,7 @@ def filter_max_length(bed_path, output_path, max_len=1000):
   """
 
   # check if bedfile is compressed
-  compression = "gzip" if _is_gzipped(bed_path) else None
+  compression = "gzip" if is_gzipped(bed_path) else None
 
   # load bed file
   df = pd.read_table(bed_path, header=None, sep="\t", compression=compression)

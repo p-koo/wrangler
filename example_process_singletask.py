@@ -32,8 +32,6 @@ singletask.process_data(
     neg_pos_ratio=neg_pos_ratio,
     valid_chr=valid_chr,
     test_chr=test_chr,
-    valid_frac=None, 
-    test_frac=None,    # if set to a number, randomly split data into train, valid, and test
     alphabet=alphabet,
     blacklist_path=blacklist_path,
     standard_coord=False,
